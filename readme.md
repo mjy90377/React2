@@ -1,4 +1,112 @@
 # 202430208 민지영
+## [4주차 - 26.09.23]
+## 1. 레이아웃과 페이지
+> #### *루트 레이아웃은 필수
+> * 서브페이지는 레이아웃 파일이 선택 사항이지만 루트에는 `page.tsx`와 함께 `layout.tsx`또한 필수이다.
+> * 루트 레이아웃에는 `<html>`태그와 `<body>` 태그가 반드시 있어야 한다.
+### 중첩 라우트 만들기
+: 여러 개의 URL 세그먼트로 구성된 경로
+- Next.js에서 
+    * 폴더는 URL 세그먼트에 매핑되는 경로 세그먼트를 만듦
+    * 디렉토리 구조 -> 라우팅 주소
+    * 페이지와 레이아웃 -> UI
+- 폴더를 계속 중첩하여 중첩된 경로를 만들 수 있음
+    - 폴더 이름을 <u>대괄호로 묶으면</u> 데이터를 기반으로 여러 페이지를 생성하는 데 사용되는 **동적 경로 세그먼트가** 생성됨 (ex: `[slug]`)
+### slug
+: 사이트의 특정 페이지를 쉽게 읽을 수 있는 형태로 식별하는 URL의 일부
+- `/blog/[slug]`의 `[slug]`는 불러올 데이터의 **key**
+    
+    ⇒ 데이터에 slug key가 있어야 함
+    
+    > * 이름은 반드시 slug일 필요 없고, 해당하는 이름의 키가 데이터에 있으면 된다.
+    > * 그러나 대부분 slug라는 이름으로 사용한다.
+- 하나의 페이지로 데이터 수만큼 페이지를 제공할 수 있음
+
+- params가 비동기 객체처럼 다뤄지는 경우 오류 발생
+```tsx
+export default async function Posts({params}: {params: Promise<{slug: string}>}){
+    const { slug } = await params;
+    const post = posts.find((p) => p.slug === slug);
+```
+* `await` 사용
+    * 함수를 `async`로 선언해야 사용 가능
+    * 서버의 데이터를 읽어올 때 <u>타임 딜레이에 의한 오류</u>를 방지함
+- `posts`: 배열
+    - `.find()`는 조건에 맞는 첫 번째 요소를 반환함
+        - .find()는O(n) — 시간 복잡도가 데이터의 크기에 비례
+        - 때문에 데이터가 크면 비효율적
+
+⇒ `p.slug`가 URL에서 온 slug와 일치하는 게시글을 찾음
+### map() 함수로 slug 가져오기
+```tsx
+import Link from "next/link";
+import {posts} from "./blog/posts"
+
+export default function Home() {
+  return (
+    <div>
+            <h1>블로그 목록</h1>
+            <ul>
+            {posts.map((post) => (
+                <li key={post.slug}>
+                    <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+                </li>
+            ))}
+            </ul>
+     </div>
+  );
+}
+
+```
+### searchParams prop
+: URL의 쿼리 문자열을 읽는 방법
+> #### <params와 비교>
+>— **params**: 동적 세그먼트에서 가져오는 값 (URL의 path 부분에 포함된 데이터)
+<br>
+>— **searchParams** : URL에서 `?` 뒤에 붙는 key=value
+* ex) `/products?category=shoes&page=2`에서 `category=shoes`와 `page=2`가 searchParams이다.
+* 컴포넌트의 props로 전달됨
+* 동적 렌더링으로 처리됨
+    #### #동적 렌더링인 이유
+    :Next.js에서 페이지는 정적/동적으로 렌더링될 수 있음
+    * searchParams는 요청이 들어와야만 값을 알 수 있음
+    * 페이지를 정적으로 미리 생성할 수 없고 <u>요청이 올 때마다 렌더링</u> 필요
+    * 정적 렌더링에서는 searchParams 사용 불가능
+* 사용법
+    ```tsx
+    export default async function ProductsPage({
+        searchParams
+    } : {
+        searchParams: Promise<{id?: string; name?: string}>
+    }) {
+        const {id = "non id", name = "non name"} = await searchParams
+        return(
+            <div>
+                <h1>Products Page</h1>
+                <p>id : {id}</p>
+                <p>name : {name}</p>
+            </div>
+        )
+    }
+    ```
+    --> /products로 라우팅된 page.tsx
+    * url을 통해 전달된 값이 페이지에 출력됨
+    * 전달 방법: `?` 뒤에 `key=value` 형식으로 전달하고 `&`로 구분한다.
+        * ex) `http://localhost:3000/products?id=123&name=foo`
+        * -> '123', 'foo' 가 전달됨
+    * 아무 값도 전달하지 않으면 기본값이 출력됨
+        * `await`을 통해 들어온 값 유무에 따라 출력값 결정
+    * 없는 속성을 전달해도 오류가 발생하지 않음
+        * 아무 일도 일어나지 않는다.
+### Next.js의 라우팅 시스템
+: Next.js는 자체적인 라우팅 시스템을 내장하고 있다.
+| 일반 React | Next.js |
+| --- | --- |
+| 수동 라우팅 | 자동 라우팅 |
+| 외부 라이브러리 필요 | 자체적 시스템 | 
+| 코드에서 직접 정의 |    파일/폴더 이름으로 라우트가 자동 매핑됨 | 
+
+---
 ## [3주차 - 26.09.16]
 ## 1. 폴더 및 파일 규칙
 ### [라우팅 그룹 및 비공개 폴더]
@@ -116,7 +224,7 @@ pnpm i next@latest react@latest react-dom@latest
 ```
 ### package.json
  package.json 파일에 `"scripts"` 추가
-```
+```json
 "scripts": {
 		"dev": "next dev",
 		"build": "next build",
@@ -134,7 +242,7 @@ pnpm i next@latest react@latest react-dom@latest
     * 이름이 관례적으로 소문자로 시작
     * 컴포넌트 형태이지만 <u>라우팅 관련</u> 파일이기 때문
     * 내부 코드에서의 이름은 대문자로 시작함
-*  루트 레이아웃은 필수적이지 않지만 <u>루트 페이지는 필수</u>
+*  루트 레이아웃과 루트 페이지는 필수
 ### TypeScript 환경 만들기
 : **타입 정의**를 제공하는 패키지 설치 필요
 ```
@@ -165,7 +273,7 @@ pnpm add -D @types/react @types/react-dom
 * 자동 설치 시 옵션에서 기본값인 no를 선택해도 적용됨
 * 수동 설치 시 `tsconfig.json`의 `"compilerOptions"`에 추가
     1. 기존(레거시) 사용법
-    ```
+    ```json
     "compilerOptions": {
         "baseUrl": "src/",
         "paths": {
@@ -178,7 +286,7 @@ pnpm add -D @types/react @types/react-dom
         * 현재 위 방식 사용 시 경고 발생
         * `“ignoreDeprecations” : “6.0”` 로 사용 중단 예정 항목 무시 가능
     2. 현재 사용법
-    ```
+    ```json
     "compilerOptions": {
         "paths": {
             "@/*": ["./src/*"],

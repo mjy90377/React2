@@ -1,4 +1,161 @@
 # 202430208 민지영
+## [6주차 - 26.10.07]
+## 1. 전환을 느리게 만드는 요인
+### generateStaticParams가 없는 경우
+```tsx
+import {posts} from "../posts"
+
+export default async function PostPage({
+    params,
+}: {
+    params: Promise<{slug: string}>;
+}) {
+    const { slug } = await params;
+    const post = posts.find((p) => p.slug === slug);
+
+    if (!post) {
+        return <h1>게시글을 찾을 수 없습니다!</h1>
+    }
+
+    return(
+        <article>
+            <h1>{post.title}</h1>
+            <p>{post.content}</p>
+        </article>
+    );
+}
+```
+> #### *코드에서 구조 분해 할당
+> * `{params,}` : 실제로 받을 값을 구조 분해 할당
+>   * 단일 매개변수이므로 콤마는 필수적이지 않음
+> * `{params: Promise<{slug: string}>;} ` : 타입스크립트 방식으로 위의 매개변수 `params`의 타입 설명
+>   * `Promise`로 객체를 감싸고 있는 것은 추후 이런 형태를 전달하겠다는 의미
+###  generateStaticParams 사용법
+: 위의 코드에 함수 추가
+```tsx
+export async function generateStaticParams(){
+    return posts.map((post) => ({
+        slug: post.slug,
+    }));
+}
+```
+* 런타임이 아닌 **build 시점**에 미리 <u>생성할 slug 목록 반환</u>
+* Next.js는 반환된 각 slug에 대해 **정적 페이지**를 생성함
+* `posts` 배열을 순회하여 `{slug}`형식의 객체 배열을 반환함
+> #### notFound() 사용 가능
+> : `post`가 없을 때 직접 내용을 리턴하는 대신 `notFound()`를 사용할 수 있음
+> * 임포트: `import { notFound } from "next/navigation";`
+> * 사용:
+>   ```tsx
+>   if (!post) {
+>        notFound();
+>   }     
+>   ```
+
+
+#### <동작 과정>
+1. Next.js가 빌드 시점에 `[slug]/page.tsx`와 같은 동적 라우트를 찾으면 `generateStaticParams()`를 실행함
+2. `generateStaticParams()`는 아래와 같은 형태의 값을 반환함
+    ```
+    [
+        {slug: "a"},
+        {slug: "b"},
+        {slug: "c"}
+    ]
+    ```
+3. 각 params에 대해 `page.tsx`를 실행하여 **정적 html** 생성
+    * ex) params가 `a`인 경우 `/blog3/a/index.html`이 생성됨
+### <await이 없어도 async를 붙여두는 이유>
+: Next.js 13+의 App Router에서 page.tsx와 같은 <u>서버 컴포넌트는 비동기 렌더링을 전제</u>로 함<br>
+
+→ page.tsx 안에서 데이터를 fetch하는 경우가 많기 때문에 async를 기본으로 붙여도 문제없음
+- **일관성 유지** : 같은 프로젝트 안에서 async와 일반 function이 공존하면 혼란 유발 가능
+    - 공식 문서에서도 대부분 async function 예제를 사용함
+- **확장성** : DB나 API에서 데이터를 가져올 때 `await fetch` 와 같은 코드를 사용할 수 있음
+    - 외부 데이터 사용 시 async 필요
+    - 당장 사용하지 않더라도 미리 붙여두면 편리
+- **React Server Component 호환성** : 서버 컴포넌트는 Promise를 반환할 수 있어야 하고, Next.js는 내부적으로 async 함수 패턴에 맞춰 최적화된 렌더링 파이프라인을 가지고 있음
+    - async가 붙어있어도 불필요한 오버헤드가 거의 없음
+
+###  generateStaticParams 유무 차이
+- **없는 경우** : Next.js가 slug 값을 빌드 타임에 모르는 상태
+    - slug 페이지에 접속하면 Next.js가 서버에서 <u>요청할 때마다 해당 페이지를 동적으로 렌더링</u>함
+    - 빌드 결과물로 html 파일은 생성되지 않음
+- **있는 경우** :  Next.js에 빌드 타임에 생성할 slug 목록을 알려줄 수 있음
+    - 지정한 slug에 대해서는 정적 HTML + JSON이 <u>빌드 타임에 생성</u>됨
+    - 최초 접근 시 SSR 필요없이 미리 만들어진 페이지 제공 
+
+| | 없을 경우 | 있을 경우 |
+| --- | --- | --- |
+| 페이지 생성 시점 | 요청 시(SSR/ISR)  | 빌드 타임(SSG) |
+| 초기 로딩 속도 | 느림 | 빠름 | 
+| SEO | 가능하지만 요청 시 |    매우 유리
+| 유연성 | slug 무한정 지원 가능(DB 조회 등) | slug 개수만큼만 정적 페이지를 만들기 때문에 slug를 미리 알아야 함 |
+
+### 느린 네트워크
+: 네트워크가 느리거나 불안정한 경우, 사용자가 링크를 클릭하기 전에 프리페칭이 완료되지 않을 수 있다.
+- 정적 경로와 동적 경로 모두에 영향을 미칠 수 있음
+- `loading.tsx` 파일이 아직 프리페칭되지 않았다면 즉시 표시되지 않을 수 있음
+- 체감 성능 개선을 위해 useLinkStatus Hook을 사용하여 전환이 진행되는 동안 사용자에게 인라인 시각적 피드백 표시
+- 초기 애니메이션 지연을 추가하고 애니메이션을 보이지 않게 시작하면 로딩 표시기를 디바운스할 수 있음
+    - 내비게이션이 지정된 지연 시간보다 오래 걸리는 경우에만 로딩 표시기가 나타남
+    
+### 프리페칭 비활성화
+: `<Link>` 컴포넌트에서 prefetch prop을 false로 설정하여 <u>프리페치를 사용하지 않도록 선택</u> 가능
+```tsx
+<Link prefetch={false} href="/blog">
+```
+⇒ 대량의 링크 목록을 렌더링할 때 불필요한 리소스 사용을 방지할 수 있음
+* 단점
+    - 정적 라우팅은 사용자가 링크를 클릭할 때만 가져옴
+    - 동적 라우팅은 클라이언트가 해당 경로로 이동하기 전에 미리 서버에 렌더링
+> #### *프리페치를 완전히 비활성화하지 않고 리소스 사용량을 줄이는 법
+> : 마우스 호버 시에만 프리페치 사용
+> * 뷰포트의 모든 링크가아닌 방문 가능성이 높은 경로로만 프리페치가 제한됨
+
+### Hydration이 완료되지 않음
+> _*하이드레이션: 서버에서 생성된 HTML에 JavaScript 로직을 추가하여 동적으로 상호작용이 가능하도록 만드는 과정_
+* `<Link>`는 클라이언트 컴포넌트이기 때문에 <u>라우팅 페이지를 프리페치하기 전에 하이드레이션</u> 해야 함
+    * → 초기 방문 시 대용량 자바스크립트 번들로 인해 하이드레이션이 지연되어 프리페칭이 바로 시작되지 않을 수 있음
+* React는 선택적 Hydration을 통해 이를 완화하며, 개선하기 위한 방법들이 있음
+    * @next/bundle-analyzer 플러그인 사용 
+        - 대규모 종속성을 제거하여 번들 크기 식별 및 축소 가능
+    * 가능하면 클라이언트에서 서버로 로직 이동  
+
+### 네이티브 히스토리 API
+: Next.js에서는 기본으로 `window.history.pushState`와 `window.history.replaceState`메소드를 제공
+* 페이지를 다시 로드하지 않고 브라우저의 기록 스택 업데이트 가능
+* `pushState`, `replaceState `호출은 Next.js 라우터에 통합되어 `usePathname` 및 `useSearchParams`와 동기화 가능
+- **window.history.pushState**
+    - 브라우저의 기록 스택에 새 항목 추가
+    - 사용자는 이전 상태로 돌아갈 수 있음
+        
+        *ex) 제품 목록 등 정렬*
+        
+- **window.history.replaceState**
+    - 브라우저의 기록 스택에서 현재 항목을 변경
+    - 사용자는 이전 상태로 돌아갈 수 없음
+        
+        *ex) 애플리케이션의 로케일(Locale)을 전환하는 경우*
+## 2. 서버와 클라이언트 컴포넌트
+* 기본적으로 `layout`과 `page`는 서버 컴포넌트이다.
+* 서버에서 데이터를 가져와 UI의 일부 렌더링하고, 선택적으로 결과를 cache한 후 client로 스트리밍할 수 있다.
+* 상호작용이나 브라우저 API가 필요할 시 client component를 사용하여 기능을 계층화할 수 있다.
+
+### 서버/클라이언트 컴포넌트 사용 시기
+: 사용 사례에 따라 각각 환경에서 필요한 로직 실행 가능
+#### <클라이언트 컴포넌트>
+- state 및 event handler (onClick, onChange 등)
+- 라이프사이클 로직 (useEffect 등)
+- 브라우저 전용 API (localStorage, window, navigator, geolocation 등)
+- 사용자 정의 Hook
+#### <서버 컴포넌트>
+- 서버의 데이터베이스 혹은 API에서 데이터를 가져오는 경우
+- API key, 토큰 및 기타 보안 데이터를 클라이언트에 노출하지 않기 위해
+- 브라우저로 전송되는 JavaScript의 양을 줄이고 싶을 때
+- 콘텐츠가 포함된 첫 번째 페인트를 개선하고, 콘텐츠를 클라이언트에 점진적으로 스트리밍할 때
+
+---
 ## [5주차 - 26.09.30]
 ## 1. 앱 라우터
 ### Pages 라우터와 App 라우터의 차이

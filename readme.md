@@ -1,4 +1,65 @@
 # 202430208 민지영
+## [9주차 - 26.10.28]
+## 1. 클라이언트 컴포넌트 사용
+### 작성 방법
+: `"use client"`지시문을 **파일의 맨 위**에 사용하여 클라이언트 컴포넌트임을 명시한다.
+* 지시문으로 명시되지 않은 컴포넌트는 모두 서버 컴포넌트
+> #### <디렉토리 구조>
+> src 디렉토리 사용 시, app 디렉토리에는 **라우팅 페이지**만 저장하고 다른 파일들은 용도에 따라 <u>src/ 하위의 별도의 디렉토리</u>를 만들어 저장하면 관리가 쉽다.
+>> ex) 클라이언트 컴포넌트(단순 컴포넌트)는 `src/components/`에 저장
+### 예제
+```tsx
+'use client'
+
+import { useState } from "react"
+
+export default function Counter(){
+    const [count, setCount] = useState(0);
+
+    return(
+        <div>
+            <p>{count} likes</p>
+            <button onClick={() => setCount(count + 1)}>Click me</button>
+        </div>
+    )
+}
+```
+* 파일 이름: 대문자로 시작, 컴포넌트 이름과 동일하게 작성
+    * `src/components/Counter.tsx`
+* 호출: 렌더링 페이지에서 임포트
+    * `src/app/counter/page.tsx`에서 `<Counter />`로 임포트하여 호출
+## 2. 자바스크립트 번들 크기 줄이기
+: 클라이언트에서 렌더링해야 하는 자바스크립트 번들의 크기를 줄이려면 UI의 큰 부분이 아닌 대신 <u>특정 대화형 컴포넌트에만</u> “use client”를 추가한다.
+* 대화형 컴포넌트만 클라이언트 컴포넌트로 만들기
+* 정적 요소들은 서버 컴포넌트로 유지
+### 예제(공식 문서)
+```tsx
+// Client Component
+import Search from './search'
+// Server Component
+import Logo from './logo'
+
+// Layout is a Server Component by default
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <nav>
+        <Logo />
+        <Search />
+      </nav>
+      <main>{children}</main>
+    </>
+  )
+}
+```
+* 사용자와의 상호작용이 바로 이루어질 가능성이 있는 `<Search />`는 **클라이언트 컴포넌트**
+    * 먼저 렌더링
+* 상대적으로 중요하지 않고 이미지 등의 용량이 큰 `<Logo />`는 **서버 컴포넌트**
+    * 서버 측에서 천천히 렌더링
+
+⇒ 번들의 크기를 줄일 수 있음
+
+---
 ## [7주차 - 26.10.14]
 ## 1. 낙관적 업데이트와 비관적 업데이트
 ### 낙관적 업데이트(Optimistic Update)

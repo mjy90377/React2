@@ -1,4 +1,181 @@
 # 202430208 민지영
+## [11주차 - 26.11.11]
+## 1. 컨텍스트 프로바이더
+### Context 사용하기
+* ThemeProvider.tsx
+  ```tsx
+  "use client";
+
+  import { createContext, useEffect, useState } from "react";
+
+  export const ThemeContext = createContext<{
+    theme: "light" | "dark";
+    toggleTheme: () => void;
+  }>({
+    theme: "light",
+    toggleTheme: () => {},
+  });
+
+  export default function ThemeProvider({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) {
+    const [theme, setTheme] = useState<"light" | "dark">("light");
+
+    useEffect(() => {
+      if (typeof window !== "undefined") {
+        document.documentElement.dataset.theme = theme;
+      }
+    }, [theme]);
+
+    const toggleTheme = () => {
+      setTheme((t) => (t === "dark" ? "light" : "dark"));
+    };
+    return (
+      <ThemeContext.Provider value={{ theme, toggleTheme }}>
+        {children}
+      </ThemeContext.Provider>
+    );
+  }
+  ```
+  - 클라이언트 컴포넌트
+  - context를 사용하면 props 없이 전역적으로 사용할 theme, 언어 설정, 로그인 정보 등을 하위 
+  컴포넌트에서 사용 가능
+  1. ThemeContext 컴포넌트
+    - `createContext()`로 **Context 객체**를 생성하여 theme satate를 공유
+        - react에서 import 하여 사용
+        - theme을 ‘light’와 ‘dark’로 **타입 선언** 형태
+        - toggleTheme: 토글을 위한 함수
+  2. ThemeProvider 컴포넌트
+    - `useState`로 theme 상태 관리
+        - `<'light' | 'dark'>` 로 유니온 타입 선언 → 두 값만 들어올 수 있도록
+    - `useEffect` 훅으로 테마를 HTML 문서 전체에 적용
+        - useEffect Hook : 컴포넌트가 렌더링된 후 사이드 이펙트를 위한 함수
+        - `document.documentElement`:  HTML 문서의 <html> 요소를 가리킴
+        - `.dataset.theme = theme`:<html> 태그에 data-theme 속성 추가
+            
+            ⇒ theme state 값이 'dark'일 경우 `<html data-theme=”dark”>` 반환
+            
+        - `[theme]` : 의존성 배열
+            - theme 값이 변경될 때마다 <u>useEffect 안의 코드가 다시 실행</u>됨
+            - 이 경우 css에서는 속성을 조건으로 스타일을 다르게 지정 가능
+            
+            ```css
+            /* 속성 선택자 */
+            html[data-theme="light"] {
+            	...
+            }
+            
+            html[data-theme="dark"] {
+            	...
+            }
+            ```
+            
+            - 속성 선택자는 class를 여러 개 붙이는 경우보다 스타일 충돌을 줄일 수 있음
+        
+      
+        
+    - `toggleTheme`
+        - theme state를 삼항 연산자로 토글하여 setTheme 함수로 저장
+    - `ThemeContext.Provider`
+        - createContext 함수를 호출하면 react는 Context 객체 하나를 생성
+            - 해당 객체의 대표적 속성 2가지가 **Provider, Consumer**
+            
+            → `Provider`: context에서 제공하는 react 컴포넌트
+            
+        - ThemeCointext.Provider 컴포넌트에 theme state와 toggleTheme 함수를 함께 <u>props로 전달</u>
+        
+        ⇒ 하위 컴포넌트에서는 현재 theme state를 알 수 없기 때문에 버튼 쪽으로 toggleTheme 함수와 theme를 함께 전달하는 것이다.
+
+* ThemeStatus.tsx
+  ```tsx
+  "use client";
+
+  import { useContext } from "react";
+  import { ThemeContext } from "./ThemeProvider";
+
+  export default function ThemeStatus() {
+    const { theme, toggleTheme } = useContext(ThemeContext);
+    return (
+      <div style={{ display: "inline-block", marginLeft: 12 }}>
+        <button onClick={toggleTheme} aria-label="toggle theme">
+          Theme : {theme === "dark" ? "🌙 Dark" : "☀️ Light"}
+        </button>
+      </div>
+    );
+  }
+  ```
+  - 토글 버튼을 위한 클라이언트 컴포넌트
+  1. ThemeProvider의 ThemeContext를 import
+      - 사용하기 위해 useContext도 import
+  2. useContext 함수
+      - ThemeContext에서 전달받은 theme과 toggleTheme를 추출함
+  3. 버튼
+      - onClick 이벤트 발생 시 :
+          -  추출한 toggleTheme 함수를 사용
+          - 버튼 내의 삼항 연산자를 사용해 버튼의 모양 교체
+      - aria-label 속성 : 웹 접근성 속성
+* RootLayout(루트 layout.tsx)
+  - ThemeProvider와 ThemeStatus 컴포넌트 사용을 위해 import
+  -  `<body>` 하위에 `<ThemeProvider>` 추가
+      - css의 속성 선택자로 html을 사용했기 때문에 `<html>`을 감싸야 한다.
+      > *레이아웃 컴포넌트의 `<html>`, `<body>`는 Next.js에서 jsx로 렌더링되기 때문에 `<body>`의 상위나 하위에 있어도 
+  - ThemeProvider하위의 header에서 원하는 위치에 `<ThemeStatus />` 추가
+### 실행 과정
+1. Context 생성
+    - createContext()로 Context 객체 생성
+        - 초기값은 provider가 없을 때 사용할 fallback 값
+    - ThemeProvider 컴포넌트
+        - useState로 theme 상태 관리
+        - toggleTheme 함수로 setTheme을 호출해 상태 변경
+        - useEffect로 상태 변경 시 `document.documentElement.dataset.theme`에 값을 기록
+2. Provider 배치
+    - RootLayout에서 ThemeProvider로 루트 또는 필요한 하위 트리를 감쌈
+    - Provider 하위에 렌더링되는 모든 컴포넌트들이 ThemeContext에 접근 가능
+3. Consumer 사용
+    - useContext로 Provider의 값을 읽어들임
+    - 버튼 클릭 시 toggleTheme을 호출해 Provider의 theme 상태를 변경
+    - 상태 변경 시 컴포넌트가 리렌더링되어 버튼 모양이 변경되고 useEffect로 테마가 변경됨
+
+### 버튼 클릭 시 동작 순서
+1. 사용자가 ThemeStatus의 <u>버튼 클릭</u>
+2. `toggleTheme()` 호출
+3. Provider 내부의 `setTheme`이 실행되어 <u>theme 상태 변경</u>
+4. 상태 변경으로 Provider와 그 하위 컴포넌트들이 **리렌더링**되어 theme 값이 최신으로 반영
+5. `useEffect`가 실행되어 `document.documentElement.dataset.theme` 값도 갱신
+
+### Theme Context의 동작 흐름
+1. 앱 시작 / RootLayout 렌더
+    - RootLayout이 렌더되고 ThemeProvider로 children을 감쌈
+
+    (layout.tsx → ThemeProvider 사용)
+2. Context 생성(초기화)    
+3. Provider 인스턴스 생성
+    - ThemeProvicer 컴포넌트가 실행되어 내부 state(theme, setTheme) 생성(useState)
+
+4. 하위 트리 렌더링
+5. Consumer 사용 
+    - ThemeStatus 렌더
+6. 사용자 상호작용(버튼 클릭)
+7. 상태 변경 내부 처리
+8. 부수효과 실행(useEffect)
+    - theme 변경으로 useEffect가 실행
+9. 리렌더링 전파
+10. 결과: 레이아웃/스타일 반영
+
+## 2. 외부(서드 파티) 컴포넌트
+ : 클라이언트 전용 기능에 의존하는 **외부 컴포넌트**를 사용하는 경우, 해당 컴포넌트를 클라이언트 컴포넌트에 래핑하여 예상대로 작동하는지 확인할 수 있다.
+
+ ex) 'acme-carousel' 패키지의 `<Carousel />` 컴포넌트
+- useState를 사용하지만 ‘use client’ 지시문이 없음
+
+    
+- 서버 컴포넌트 내에서 직접 사용하려고 하면 오류 발생
+  - Next.js는 <Carousel />이 클라이언트 전용 기능을 사용하고 있다는 것을 알지 못하기 때문
+    
+⇒ 클라이언트 전용 기능에 의존하는 외부 컴포넌트를 <u>자체 클라이언트 컴포넌트로 래핑</u>  
+  - 서버 컴포넌트 내에서 직접 사용 가능
 
 ## [10주차 - 26.11.04]
 

@@ -1,8 +1,111 @@
 # 202430208 민지영
+
+## [12주차 - 26.11.18]
+
+## 1. 서드 파티 컴포넌트
+
+### 서드 파티 컴포넌트 사용
+
+1. `<Carousel />` 컴포넌트 사용을 위해 acme-carousel 패키지 추가
+2. 클라이언트 컴포넌트 Gallery.tsx에서 import
+
+```tsx
+"use client";
+
+import "./styles.css";
+import { Carousel } from "acme-carousel";
+
+export default function Gallery() {
+  const items = [
+    { src: "https://picsum.photos/300/230", alt: "Landscape 1" },
+    { src: "https://picsum.photos/300/210", alt: "Landscape 2" },
+    { src: "https://picsum.photos/300/200", alt: "Landscape 3" },
+  ];
+
+  return <Carousel items={items} />;
+}
+```
+
+- Carousel 컴포넌트는 클라이언트 전용 기능을 사용하고 있기 때문에 <u>서버 컴포넌트에서 직접 사용할 수 없음</u>
+  - 이와 같은 서드파티 컴포넌트는 <u>클라이언트 컴포넌트에서 래핑</u>하여 사용해야 함
+
+3. app/carousel/page.tsx
+
+```tsx
+import Gallery from "@/components/Gallery";
+
+export default function CarouselPage() {
+  return <Gallery />;
+}
+```
+
+- 래핑한 클라이언트 컴포넌트를 서버 컴포넌트에서 import하면 사용 가능
+  > #### \*컴포넌트 라이브러리를 빌드하는 경우
+  >
+  > : 클라이언트 전용 기능에 의존하는 진입점에 `'use client'` 지시문 추가
+  >
+  > → 사용자가 래퍼를 만들 필요 없이 서버 컴포넌트에서 사용할 수 있음
+
+### 환경 변수 노출 예방
+
+: JavaScript 모듈은 <u>서버 및 클라이언트 컴포넌트 모듈 간에 공유</u>될 수 있기 때문에, 실수로 서버 전용 코드를 클라이언트로 가져오게 될 수 있다.
+
+- Next.js에서는 **접두사**에 `NEXT_PUBLIC`이 붙은 환경 변수만 클라이언트 번들에 포함함
+  - 접두사가 붙지 않은 변수는 Next.js에서 <u>빈 문자열로 대체</u>됨
+- 서버 전용 컴포넌트로 설정하기 위해 **server-only** 패키지를 추가하여 사용할 수 있음
+  - server-only를 import하면 해당 컴포넌트를 서버에서만 사용 가능하도록 설정
+  - 클라이언트 컴포넌트로 가져오려고 하면 오류 발생
+- **client-only** 패키지는 컴포넌트를 클라이언트 전용으로 설정
+  - ‘use client’ : 클라이언트 컴포넌트라는 선언
+  - client-only : 클라이언트에서만 쓸 수 있는 컴포넌트라는 의미
+- Next.js는 server-only 및 client-only 모듈 import를 내부적으로 처리하여, 모듈이 잘못된 환경에서 사용될 경우 더 명확한 오류 메시지 제공
+
+## Fetching data
+
+\*_fetch: 외부 데이터를 가져와서 사용하는 것_
+
+### 데이터 페칭 방법 - 서버 컴포넌트
+
+#### 1. fetch API
+
+`fetch()` 함수 사용
+
+: 컴포넌트를 **비동기식 함수**로 변환하고 다음 fetch 호출을 기다리도록 함
+
+- fetch 응답은 기본적으로 캐싱되지 않음
+- Next.js는 라우팅 페이지를 미리 렌더링하고 성능 향상을 위해 출력을 캐싱함
+- **동적 렌더링**을 사용하려면 `{cache: ‘no-store’}` 옵션 사용
+- Next.js 15.1 이후부터 <u>서버 컴포넌트에서 await 없이 fetch를 사용</u>하게 됨
+
+#### 2. ORM 또는 데이터베이스 사용
+
+\*_ORM: 객체 지향 프로그래밍 언어와 관계형 데이터베이스 간의 데이터를 자동으로 변환해주는 기술_
+
+- 서버 컴포넌트는 서버에서 렌더링됨
+- ORM이나 데이터베이스 클라이언트를 사용해 안전하게 DB 쿼리를 실행할 수 있음
+- 컴포넌트를 비동기 함수로 변환하고 호출을 기다림
+
+### 클라이언트 컴포넌트에서 데이터 페칭하기
+
+#### 1. React의 use API 사용
+
+: 서버에서 클라이언트로 데이터를 스트리밍하는 방법
+
+> **\*서버 컴포넌트**는 `async`가 가능하기 때문에 `await fetch()`도 사용 가능하지만,
+> **클라이언트 컴포넌트**에서는 `async`가 불가능하기 때문에 <u>직접 fetch가 불가능</u>하다.
+
+⇒ <u>서버 컴포넌트에서 데이터를 먼저 fetch</u>하고, 그 **결과**(promise)를 클라이언트 컴포넌트에 prop으로 전달
+
+---
+
 ## [11주차 - 26.11.11]
+
 ## 1. 컨텍스트 프로바이더
+
 ### Context 사용하기
-* ThemeProvider.tsx
+
+- ThemeProvider.tsx
+
   ```tsx
   "use client";
 
@@ -39,56 +142,51 @@
     );
   }
   ```
-  - 클라이언트 컴포넌트
-  - context를 사용하면 props 없이 전역적으로 사용할 theme, 언어 설정, 로그인 정보 등을 하위 
-  컴포넌트에서 사용 가능
-  1. ThemeContext 컴포넌트
-    - `createContext()`로 **Context 객체**를 생성하여 theme satate를 공유
-        - react에서 import 하여 사용
-        - theme을 ‘light’와 ‘dark’로 **타입 선언** 형태
-        - toggleTheme: 토글을 위한 함수
-  2. ThemeProvider 컴포넌트
-    - `useState`로 theme 상태 관리
-        - `<'light' | 'dark'>` 로 유니온 타입 선언 → 두 값만 들어올 수 있도록
-    - `useEffect` 훅으로 테마를 HTML 문서 전체에 적용
-        - useEffect Hook : 컴포넌트가 렌더링된 후 사이드 이펙트를 위한 함수
-        - `document.documentElement`:  HTML 문서의 <html> 요소를 가리킴
-        - `.dataset.theme = theme`:<html> 태그에 data-theme 속성 추가
-            
-            ⇒ theme state 값이 'dark'일 경우 `<html data-theme=”dark”>` 반환
-            
-        - `[theme]` : 의존성 배열
-            - theme 값이 변경될 때마다 <u>useEffect 안의 코드가 다시 실행</u>됨
-            - 이 경우 css에서는 속성을 조건으로 스타일을 다르게 지정 가능
-            
-            ```css
-            /* 속성 선택자 */
-            html[data-theme="light"] {
-            	...
-            }
-            
-            html[data-theme="dark"] {
-            	...
-            }
-            ```
-            
-            - 속성 선택자는 class를 여러 개 붙이는 경우보다 스타일 충돌을 줄일 수 있음
-        
-      
-        
-    - `toggleTheme`
-        - theme state를 삼항 연산자로 토글하여 setTheme 함수로 저장
-    - `ThemeContext.Provider`
-        - createContext 함수를 호출하면 react는 Context 객체 하나를 생성
-            - 해당 객체의 대표적 속성 2가지가 **Provider, Consumer**
-            
-            → `Provider`: context에서 제공하는 react 컴포넌트
-            
-        - ThemeCointext.Provider 컴포넌트에 theme state와 toggleTheme 함수를 함께 <u>props로 전달</u>
-        
-        ⇒ 하위 컴포넌트에서는 현재 theme state를 알 수 없기 때문에 버튼 쪽으로 toggleTheme 함수와 theme를 함께 전달하는 것이다.
 
-* ThemeStatus.tsx
+  - 클라이언트 컴포넌트
+  - context를 사용하면 props 없이 전역적으로 사용할 theme, 언어 설정, 로그인 정보 등을 하위
+    컴포넌트에서 사용 가능
+  1. ThemeContext 컴포넌트
+  - `createContext()`로 **Context 객체**를 생성하여 theme satate를 공유
+    - react에서 import 하여 사용
+    - theme을 ‘light’와 ‘dark’로 **타입 선언** 형태
+    - toggleTheme: 토글을 위한 함수
+  2. ThemeProvider 컴포넌트
+  - `useState`로 theme 상태 관리
+    - `<'light' | 'dark'>` 로 유니온 타입 선언 → 두 값만 들어올 수 있도록
+  - `useEffect` 훅으로 테마를 HTML 문서 전체에 적용
+    - useEffect Hook : 컴포넌트가 렌더링된 후 사이드 이펙트를 위한 함수
+    - `document.documentElement`: HTML 문서의 <html> 요소를 가리킴
+    - `.dataset.theme = theme`:<html> 태그에 data-theme 속성 추가
+      ⇒ theme state 값이 'dark'일 경우 `<html data-theme=”dark”>` 반환
+    - `[theme]` : 의존성 배열
+      - theme 값이 변경될 때마다 <u>useEffect 안의 코드가 다시 실행</u>됨
+      - 이 경우 css에서는 속성을 조건으로 스타일을 다르게 지정 가능
+
+      ```css
+      /* 속성 선택자 */
+      html[data-theme="light"] {
+      	...
+      }
+
+      html[data-theme="dark"] {
+      	...
+      }
+      ```
+
+      - 속성 선택자는 class를 여러 개 붙이는 경우보다 스타일 충돌을 줄일 수 있음
+
+  - `toggleTheme`
+    - theme state를 삼항 연산자로 토글하여 setTheme 함수로 저장
+  - `ThemeContext.Provider`
+    - createContext 함수를 호출하면 react는 Context 객체 하나를 생성
+      - 해당 객체의 대표적 속성 2가지가 **Provider, Consumer**
+        → `Provider`: context에서 제공하는 react 컴포넌트
+    - ThemeCointext.Provider 컴포넌트에 theme state와 toggleTheme 함수를 함께 <u>props로 전달</u>
+      ⇒ 하위 컴포넌트에서는 현재 theme state를 알 수 없기 때문에 버튼 쪽으로 toggleTheme 함수와 theme를 함께 전달하는 것이다.
+
+- ThemeStatus.tsx
+
   ```tsx
   "use client";
 
@@ -106,39 +204,44 @@
     );
   }
   ```
+
   - 토글 버튼을 위한 클라이언트 컴포넌트
   1. ThemeProvider의 ThemeContext를 import
-      - 사용하기 위해 useContext도 import
+     - 사용하기 위해 useContext도 import
   2. useContext 함수
-      - ThemeContext에서 전달받은 theme과 toggleTheme를 추출함
+     - ThemeContext에서 전달받은 theme과 toggleTheme를 추출함
   3. 버튼
-      - onClick 이벤트 발생 시 :
-          -  추출한 toggleTheme 함수를 사용
-          - 버튼 내의 삼항 연산자를 사용해 버튼의 모양 교체
-      - aria-label 속성 : 웹 접근성 속성
-* RootLayout(루트 layout.tsx)
+     - onClick 이벤트 발생 시 :
+       - 추출한 toggleTheme 함수를 사용
+       - 버튼 내의 삼항 연산자를 사용해 버튼의 모양 교체
+     - aria-label 속성 : 웹 접근성 속성
+
+- RootLayout(루트 layout.tsx)
   - ThemeProvider와 ThemeStatus 컴포넌트 사용을 위해 import
-  -  `<body>` 하위에 `<ThemeProvider>` 추가
-      - css의 속성 선택자로 html을 사용했기 때문에 `<html>`을 감싸야 한다.
-      > *레이아웃 컴포넌트의 `<html>`, `<body>`는 Next.js에서 jsx로 렌더링되기 때문에 `<body>`의 상위나 하위에 있어도 
+  - `<body>` 하위에 `<ThemeProvider>` 추가
+    - css의 속성 선택자로 html을 사용했기 때문에 `<html>`을 감싸야 한다.
+      > \*레이아웃 컴포넌트의 `<html>`, `<body>`는 Next.js에서 jsx로 렌더링되기 때문에 `<body>`의 상위나 하위에 있어도
   - ThemeProvider하위의 header에서 원하는 위치에 `<ThemeStatus />` 추가
+
 ### 실행 과정
+
 1. Context 생성
-    - createContext()로 Context 객체 생성
-        - 초기값은 provider가 없을 때 사용할 fallback 값
-    - ThemeProvider 컴포넌트
-        - useState로 theme 상태 관리
-        - toggleTheme 함수로 setTheme을 호출해 상태 변경
-        - useEffect로 상태 변경 시 `document.documentElement.dataset.theme`에 값을 기록
+   - createContext()로 Context 객체 생성
+     - 초기값은 provider가 없을 때 사용할 fallback 값
+   - ThemeProvider 컴포넌트
+     - useState로 theme 상태 관리
+     - toggleTheme 함수로 setTheme을 호출해 상태 변경
+     - useEffect로 상태 변경 시 `document.documentElement.dataset.theme`에 값을 기록
 2. Provider 배치
-    - RootLayout에서 ThemeProvider로 루트 또는 필요한 하위 트리를 감쌈
-    - Provider 하위에 렌더링되는 모든 컴포넌트들이 ThemeContext에 접근 가능
+   - RootLayout에서 ThemeProvider로 루트 또는 필요한 하위 트리를 감쌈
+   - Provider 하위에 렌더링되는 모든 컴포넌트들이 ThemeContext에 접근 가능
 3. Consumer 사용
-    - useContext로 Provider의 값을 읽어들임
-    - 버튼 클릭 시 toggleTheme을 호출해 Provider의 theme 상태를 변경
-    - 상태 변경 시 컴포넌트가 리렌더링되어 버튼 모양이 변경되고 useEffect로 테마가 변경됨
+   - useContext로 Provider의 값을 읽어들임
+   - 버튼 클릭 시 toggleTheme을 호출해 Provider의 theme 상태를 변경
+   - 상태 변경 시 컴포넌트가 리렌더링되어 버튼 모양이 변경되고 useEffect로 테마가 변경됨
 
 ### 버튼 클릭 시 동작 순서
+
 1. 사용자가 ThemeStatus의 <u>버튼 클릭</u>
 2. `toggleTheme()` 호출
 3. Provider 내부의 `setTheme`이 실행되어 <u>theme 상태 변경</u>
@@ -146,36 +249,39 @@
 5. `useEffect`가 실행되어 `document.documentElement.dataset.theme` 값도 갱신
 
 ### Theme Context의 동작 흐름
-1. 앱 시작 / RootLayout 렌더
-    - RootLayout이 렌더되고 ThemeProvider로 children을 감쌈
 
-    (layout.tsx → ThemeProvider 사용)
-2. Context 생성(초기화)    
+1. 앱 시작 / RootLayout 렌더
+   - RootLayout이 렌더되고 ThemeProvider로 children을 감쌈
+
+   (layout.tsx → ThemeProvider 사용)
+
+2. Context 생성(초기화)
 3. Provider 인스턴스 생성
-    - ThemeProvicer 컴포넌트가 실행되어 내부 state(theme, setTheme) 생성(useState)
+   - ThemeProvicer 컴포넌트가 실행되어 내부 state(theme, setTheme) 생성(useState)
 
 4. 하위 트리 렌더링
-5. Consumer 사용 
-    - ThemeStatus 렌더
+5. Consumer 사용
+   - ThemeStatus 렌더
 6. 사용자 상호작용(버튼 클릭)
 7. 상태 변경 내부 처리
 8. 부수효과 실행(useEffect)
-    - theme 변경으로 useEffect가 실행
+   - theme 변경으로 useEffect가 실행
 9. 리렌더링 전파
 10. 결과: 레이아웃/스타일 반영
 
 ## 2. 외부(서드 파티) 컴포넌트
- : 클라이언트 전용 기능에 의존하는 **외부 컴포넌트**를 사용하는 경우, 해당 컴포넌트를 클라이언트 컴포넌트에 래핑하여 예상대로 작동하는지 확인할 수 있다.
 
- ex) 'acme-carousel' 패키지의 `<Carousel />` 컴포넌트
+: 클라이언트 전용 기능에 의존하는 **외부 컴포넌트**를 사용하는 경우, 해당 컴포넌트를 클라이언트 컴포넌트에 래핑하여 예상대로 작동하는지 확인할 수 있다.
+
+ex) 'acme-carousel' 패키지의 `<Carousel />` 컴포넌트
+
 - useState를 사용하지만 ‘use client’ 지시문이 없음
-
-    
 - 서버 컴포넌트 내에서 직접 사용하려고 하면 오류 발생
   - Next.js는 <Carousel />이 클라이언트 전용 기능을 사용하고 있다는 것을 알지 못하기 때문
-    
-⇒ 클라이언트 전용 기능에 의존하는 외부 컴포넌트를 <u>자체 클라이언트 컴포넌트로 래핑</u>  
-  - 서버 컴포넌트 내에서 직접 사용 가능
+
+⇒ 클라이언트 전용 기능에 의존하는 외부 컴포넌트를 <u>자체 클라이언트 컴포넌트로 래핑</u>
+
+- 서버 컴포넌트 내에서 직접 사용 가능
 
 ## [10주차 - 26.11.04]
 
@@ -184,6 +290,7 @@
 : props를 사용하여 서버 컴포넌트에서 클라이언트 컴포넌트로 데이터를 전달할 수 있음
 
 - PostPage(서버 컴포넌트)
+
   ```tsx
   return (
     <>
@@ -196,6 +303,7 @@
   ```
 
   - 클라이언트 컴포넌트로 likes props 전달
+
 - LikeButton(클라이언트 컴포넌트)
 
   ```tsx
@@ -254,34 +362,37 @@
         );
       }
       ```
-    ### [동작 과정]
-    1. Next.js가 ServerContent를 서버에서 렌더링하여 HTML로 변환
-    2. HTML을 ClientLayout의 {children}에 끼워넣음
-    3. 클라이언트에서는 ClientLayout만 하이드레이션(js 연결)
-    4. 서버 데이터는 들어와있는 상태로 버튼이나 이벤트는 클라이언트 컴포넌트에서 처리
+
+  ### [동작 과정]
+  1. Next.js가 ServerContent를 서버에서 렌더링하여 HTML로 변환
+  2. HTML을 ClientLayout의 {children}에 끼워넣음
+  3. 클라이언트에서는 ClientLayout만 하이드레이션(js 연결)
+  4. 서버 데이터는 들어와있는 상태로 버튼이나 이벤트는 클라이언트 컴포넌트에서 처리
 
 ## 3. 컨텍스트 프로바이더
+
 ### [Context란?]
+
 : Next.js에서 Context는 React의 Context API를 사용하여 컴포넌트 사이에 데이터를 공유하는 메커니즘이다.
 
-* 부모 컴포넌트에서 자식 컴포넌트로 <u>직접 props를 전달하지 않고도</u>, 특정 데이터를 필요한 컴포넌트에서 쉽게 접근하고 사용할 수 있도록 돕는다.
-    
-    #### <특징>
-    - **전역 상태 관리**
-        - 애플리케이션 전체에서 공유해야 하는 데이터를 <u>중앙 집중적으로</u> 관리 가능
-    - **props drilling 문제 해결**
-        - 컴포넌트 트리가 깊어질수록 props를 계속 전달해야 하는 번거로움을 줄임
-        - Context 사용 시 필요한 컴포넌트에서 바로 데이터를 가져올 수 있음
-        - 코드의 가독성 향상, 유지보수 용이
-    - **React 컴포넌트에서 사용**
-        - React에서 제공하는 기능이기 때문에 Next.js에서도 <u>React 컴포넌트를 사용</u>하여 구현함
+- 부모 컴포넌트에서 자식 컴포넌트로 <u>직접 props를 전달하지 않고도</u>, 특정 데이터를 필요한 컴포넌트에서 쉽게 접근하고 사용할 수 있도록 돕는다.
+  #### <특징>
+  - **전역 상태 관리**
+    - 애플리케이션 전체에서 공유해야 하는 데이터를 <u>중앙 집중적으로</u> 관리 가능
+  - **props drilling 문제 해결**
+    - 컴포넌트 트리가 깊어질수록 props를 계속 전달해야 하는 번거로움을 줄임
+    - Context 사용 시 필요한 컴포넌트에서 바로 데이터를 가져올 수 있음
+    - 코드의 가독성 향상, 유지보수 용이
+  - **React 컴포넌트에서 사용**
+    - React에서 제공하는 기능이기 때문에 Next.js에서도 <u>React 컴포넌트를 사용</u>하여 구현함
+
 ### [Next.js에서 Context 사용]
 
 - 클라이언트 컴포넌트
-    - Next.js 13부터 클라이언트 컴포넌트 내에서 Context 자유롭게 사용 가능
-- 서버 컴포넌트
-    - 직접 Context를 생성하거나 사용할 수 없지만 <u>클라이언트 컴포넌트로 데이터를 전달</u>하여 간접적인 사용 가능
-> *Context를 과도하게 사용하면 렌더링 성능에 영향을 줄 수 있으므로, 필요한 경우에만 신중하게 사용해야 한다.
+  - Next.js 13부터 클라이언트 컴포넌트 내에서 Context 자유롭게 사용 가능
+- 서버 컴포넌트 - 직접 Context를 생성하거나 사용할 수 없지만 <u>클라이언트 컴포넌트로 데이터를 전달</u>하여 간접적인 사용 가능
+  > \*Context를 과도하게 사용하면 렌더링 성능에 영향을 줄 수 있으므로, 필요한 경우에만 신중하게 사용해야 한다.
+
 ---
 
 ## [9주차 - 26.10.28]
@@ -1159,6 +1270,7 @@ pnpm add -D @types/react @types/react-dom
 - 자동 설치 시 옵션에서 기본값인 no를 선택해도 적용됨
 - 수동 설치 시 `tsconfig.json`의 `"compilerOptions"`에 추가
   1. 기존(레거시) 사용법
+
   ```json
   "compilerOptions": {
       "baseUrl": "src/",
@@ -1173,6 +1285,7 @@ pnpm add -D @types/react @types/react-dom
     - 현재 위 방식 사용 시 경고 발생
     - `“ignoreDeprecations” : “6.0”` 로 사용 중단 예정 항목 무시 가능
   2. 현재 사용법
+
   ```json
   "compilerOptions": {
       "paths": {

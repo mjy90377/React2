@@ -1,5 +1,253 @@
 # 202430208 민지영
 
+## [13주차 - 26.11.25]
+
+## 1. 데이터 페칭
+
+### fetch(url)
+
+: 브라우저의 fetch API로, <u>HTTP 요청</u>을 보낼 때 사용됨
+
+- 기본적으로 **GET 방식**으로 요청 수행
+- 첫 번째 인자로 **요청 URL**, 두 번째 인자로 **요청 옵션** 전달
+  - 옵션: method, headers, body 등
+- `Promise<Response>` 객체 반환
+  > ### Fetch
+  >
+  > - HTTP 상태 코드가 4xx/5xx이어도 Promise는 reject(오류)되지 않음
+  > - 네트워크 에러가 아니라면 무조건 resolve 됨
+  >
+  > ⇒ 404, 500 등의 오류 처리를 위해서는 <u>별도의 예외 처리</u> 필요
+
+### Promise의 기본 구조
+
+- new Promise()를 호출하면 Promise 객체 생성
+- 생성자의 인자로 **callback 함수**가 들어감
+  - 두 개의 매개변수를 받는 콜백함수
+    1. `resolve()` : 성공했을 때
+    2. `reject()` : 실패했을 때
+
+- **resolve()**
+  - Promise의 상태를 fulfilled로 바꾸고 값을 `.then()` 으로 전달한다.
+  - 이미 존재하는 Promise를 이행된 Promise로 감싸고 싶을 경우 → `Promise.resolve()`를 사용
+- `resolve()`와 `reject()`는 직접 정의하는 함수가 아닌 new Promise <u>내부 callback의 매개변수</u>로 주어지는 함수이다.
+
+### .then((res) => ...)
+
+: fetch()가 반환한 **Promise 객체**는 `then()` 메소드를 가진다.
+
+- Promise 객체가 resolve(성공)되면 .then()의 callback 함수가 실행됨
+- res는 서버에서 반환된 Promise 객체
+- Promise 객체는 status, header, body 등 <u>HTTP 응답 전체를 포함</u>함
+- res.ok는 상태 코드가 200~299인지 boolean 으로 알림
+- res.status는 숫자로 (200, 404 등)
+- fetch와 마찬가지로 예외처리는 별도
+
+### res.json()
+
+: 이 <u>Response 객체의 본문을 JSON으로 파싱</u>하는 **비동기 함수**
+
+- 내부적으로 문자열 형태의 <u>response body를 읽고</u>, `JSON.parse()`를 수행하여 **자바스크립트 객체**로 변환
+- Promise를 반환하기 때문에 다시 then() 체이닝을 통해 파싱된 데이터 사용 가능
+- 파싱이 완료되면 **resolve**, 실패(유효하지 않은 JSON)하면 **reject**됨
+- <u>Response body는 한 번만 읽을 수 있음</u>
+  - res.json() 또는 res.text() 등 하나만 사용 가능
+- 내부적으로 response stream → text → JSON.parse(text) 처럼 동작
+- JSON 파싱 에러의 예외처리 필요
+
+### 함수 비교
+
+| 구성요소 | 소속              | 설명                                          | 예시                |
+| -------- | ----------------- | --------------------------------------------- | ------------------- |
+| fetch()  | 전역함수(Web API) | HTTP 요청을 보내고 Promise<Response> 반환     | fetch(url)          |
+| .then()  | Promise 메소드    | Promise가 완료되면 callback 실행              | fethch(url).then(…) |
+| .json()  | Response 메소드   | Body를 JSON으로 변환하는 또 다른 Promise 반환 | res.json()          |
+
+## 2. Suspense Component
+
+: 비동기 작업 중에 UI의 일부를 일시적으로 대체 UI(fallback)로 보여주어 사용자 경험을 향상시키는 React 기능
+
+### 핵심 기능
+
+- 비동기 작업이 완료될 때까지 해당 <u>컴포넌트 트리 렌더링을 일시 중지</u>
+- 작업이 완료되면 실제 UI로 **자동 전환**
+- 비동기 로딩 중 보여줄 fallback UI(로딩 인디케이터 등)를 지정 가능
+
+### 동작
+
+- imort하여 사용
+  - `import { Suspense } from ‘react’`
+  - named 컴포넌트이기 때문에 별칭 사용 불가
+- Suspense 내부에 여러 개의 컴포넌트가 있을 경우, 내부 컴포넌트 중 <u>하나라도 로딩 중이면 fallback UI 표시</u>
+  - 모든 작업이 완료되면 한번에 실제 UI 노출
+- 활용하면 여러 비동기 컴포넌트를 독립적으로 대기하거나 병렬 로딩 상태를 효과적으로 관리 가능
+
+### Promise<…>
+
+\*Next.js 15.1부터 주요 내부 API들이 **비동기**(Promise 기반)구조로 변경됨
+
+→ 내부 API(params, searchParams, headers, cookies 등)가 즉시 사용 가능한 값이 아니라 비동기적으로 처리되며 Promise를 반환
+
+- `Promise<…>` : **비동기 연산의 결과**를 나타내는 객체 타입
+  - 연산이 즉시 완료되지 않고 미래의 어느 시점에서 결과가 결정될 때 이를 표현한다는 의미
+    - `Promise<{id: string}>` 는 미래에 `{id: string}` 객체를 반환하겠다는 약속
+  - 서버 컴포넌트로부터 Promise<{id: string}> 객체를 받았다면. 클라이언트 컴포넌트에서는 `use Hook`을 사용해서 개별 데이터에 접근
+
+### Fetching 사용
+
+1. app/blog/page.tssx
+
+   ```tsx
+   import Posts from "@/components/posts";
+   import getPosts from "@/lib/getPosts";
+   import { Suspense } from "react";
+
+   export default function BlogPage() {
+     const posts = getPosts("https://jsonplaceholder.typicode.com/posts");
+
+     return (
+       <Suspense fallback={<div>Loading...</div>}>
+         <Posts posts={posts} />
+       </Suspense>
+     );
+   }
+   ```
+
+2. components/posts.tsx
+
+   ```tsx
+   "use client";
+
+   import { use } from "react";
+
+   export default function Posts({
+     posts,
+   }: {
+     posts: Promise<{ id: string; title: string }[]>;
+   }) {
+     const allPosts = use(posts);
+
+     return (
+       <ul>
+         {allPosts.map((post) => (
+           <li key={post.id}>{post.title}</li>
+         ))}
+       </ul>
+     );
+   }
+   ```
+
+3. lib/getPosts.tsx
+
+   ```tsx
+   export default function getPosts(url: string) {
+     const res = fetch(url);
+     const json = res.then((r) => r.json());
+
+     return json;
+   }
+   ```
+
+### 데이터 흐름
+
+1. blog 페이지에 접속하면 getPosts 라이브러리를 호출하여 fetch 정보 전달
+2. getPosts는 받은 정보를 이용하여 fetch 데이터를 가져온 후 json 형태로 blog에 return
+3. blog는 getPosts로부터 받은 데이터를 Posts 컴포넌트에 props로 전달
+   - 이때 blog는 Posts로부터 데이터를 받을 때까지 Suspense로 fallback UI를 실행함
+4. Posts 컴포넌트는 use Hook을 사용하여 받은 props 데이터를 저장
+5. 저장된 데이터는 map 함수를 사용하여 list를 만들고 그 결과를 blog로 return
+6. list를 받으면 blog는 fallback UI 실행을 중지하고 즉시 list 렌더링
+
+## 3. 커뮤니티 라이브러리
+
+: 클라이언트 컴포넌트의 fetch data는 SWR 또는 React Query 같은 커뮤니티 라이브러리를 사용할 수 있다.
+
+- `SWR` : Vercel에서 만든 라이브러리
+  - 먼저 캐시된(오래된) 데이터를 빠르게 보여준 후, 백그라운드에서 최신 데이터를 다시 가져옴
+  - 최신 데이터가 도착하면 자동으로 화면 업데이트
+- 이런 라이브러리는 캐싱, 스트리밍 및 기타 기능에 대한 자체적인 의미를 가짐
+
+### SWR 사용
+
+```tsx
+"use client";
+
+import { Suspense } from "react";
+import useSWR from "swr";
+
+const fetcher = <T,>(url: string): Promise<T> =>
+  fetch(url).then((r) => r.json());
+type Photo = {
+  id: string;
+  title: string;
+};
+
+export default function Blog2Page() {
+  const { data, error, isLoading } = useSWR<Photo[]>(
+    "https://jsonplaceholder.typicode.com/posts",
+    fetcher,
+  );
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <ul>
+      <Suspense fallback="Loading posts...">
+        {data?.map((post: { id: string; title: string }) => (
+          <li key={post.id}>{post.title}</li>
+        ))}
+      </Suspense>
+    </ul>
+  );
+}
+```
+
+- `const { data, error, isLoading } = useSWR<Photo[]>(`
+  - fetcher가 Promise<Photo[]>를 반환한다고 명시
+- `{data?.map((post: { id: string; title: string }) =>`
+  - data가 undefined일 수 있으므로 옵셔널 체이닝(`?.`) 사용
+    > \*옵셔널 체이닝: null이나 undefined일 가능성이 있는 객체나 메소드에 접근할 때 사용한다.
+
+### 제네릭을 사용하는 이유
+
+\*TypeScript에서 제네릭은 타입을 매개변수처럼 사용하여 컴포넌트를 정의할 때 특정 타입에 종속되지 않도록 한다.
+
+- 타입을 동적으로 지정하여 <u>동일한 로직을 다양한 타입에 대해 재사용</u> 가능
+- 타입 안정성을 유지하면서 유연한 코드 작성 가능
+
+```tsx
+const fetcher = <T,>(url: string): Promise<T> =>
+  fetch(url).then((r) => r.json());
+```
+
+- 제네릭 `<T,>` 로 타입 변수 T 도입
+  - `,`는 JSX 문법과의 충돌 방지 용도
+- 반환 타입은 `Promise<T>`로 명시적 지정
+- 함수를 호출할 때 원하는 타입을 지정하여 타입 안전하게 사용 가능
+
+## 4. 중복된 요청 제거 및 데이터 캐시
+
+### 요청 메모이제이션(request memoization)
+
+: 같은 데이터를 여러 번 요청하지 않도록 할 수 있는 방법
+
+- 사용 시, 하나의 렌더링 과정 안에서 <u>같은 URL과 옵션을 가진 GET 또는 HEAD 방식의 fetch 호출</u>들은 **하나의 요청으로 결합**됨
+  ⇒ 렌더링 중에 같은 주소와 설정으로 여러 번 fetch()를 호출하더라도, Next.js는 그것들을 하나의 네트워크 요청으로 통합해서 처리
+- 자동으로 수행되는 작업으로, fetch에 Abort 신호를 전달하여 작업을 취소(opt out)할 수 있음
+
+### 데이터 캐시 사용
+
+: Next.js의 **데이터 캐시**를 사용하여 fetch 중복을 제거할 수 있음
+
+— fetch 옵션에서 `cache:force-cache` 설정
+
+- 데이터 캐시 사용 시 현재 렌더 패스와 수신 요청에서 데이터 공유 가능
+
+- Fetch를 사용하지 않고 ORM이나 데이터베이스를 직접 사용하는 경우 React 캐시 함수로 데이터 액세스 래핑 가능
+
+---
+
 ## [12주차 - 26.11.18]
 
 ## 1. 서드 파티 컴포넌트
